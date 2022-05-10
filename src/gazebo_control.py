@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from gazebo_msgs.srv import SetModelConfiguration
 from std_msgs.msg import Float64
