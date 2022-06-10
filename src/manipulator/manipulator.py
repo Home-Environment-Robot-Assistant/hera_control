@@ -20,46 +20,47 @@ from moveit_msgs.msg import DisplayTrajectory
 
 from dynamixel_workbench_msgs.srv import DynamixelCommand
 
-from manip3.srv import Manip3
+from hera_control.srv import Manip3
 
 class Manipulator:
 
     # gripper flexivel:
-    # LEFT_GRIP_OPENED = 1836
-    # LEFT_GRIP_CLOSED = 2226
-    # RIGHT_GRIP_OPENED = 2238
-    # RIGHT_GRIP_CLOSED = 1845
+    LEFT_GRIP_OPENED = 1836
+    LEFT_GRIP_CLOSED = 2241
+    RIGHT_GRIP_OPENED = 2238
+    RIGHT_GRIP_CLOSED = 1800
 
-    #gripper dura:
-    LEFT_GRIP_OPENED = 1757
-    LEFT_GRIP_CLOSED = 2304
-    RIGHT_GRIP_OPENED = 2256
-    RIGHT_GRIP_CLOSED = 1772
+    # #gripper dura:
+    # LEFT_GRIP_OPENED = 1757
+    # LEFT_GRIP_CLOSED = 2304
+    # RIGHT_GRIP_OPENED = 2256
+    # RIGHT_GRIP_CLOSED = 1772
 
     def __init__(self):
         self.group = moveit_commander.MoveGroupCommander('arm')
         self.group.set_planning_time(10)
-        self.group.set_pose_reference_frame('manip_link')
+        self.group.set_pose_reference_frame('manip_base_link')
 
-        self.joint_trajectory = rospy.Publisher('/manip3/joint_trajectory', JointTrajectory, queue_size=10)
+        self.joint_trajectory = rospy.Publisher('/dynamixel_controller/joint_trajectory', JointTrajectory, queue_size=10)
         self.update_start_state = rospy.Publisher('/rviz/moveit/update_start_state', Empty, queue_size=10)
 
         rospy.Subscriber('/move_group/display_planned_path', DisplayTrajectory, self.display_planned_path_callback)
-        rospy.Subscriber('/manip3/feedback', Empty, self.feedback_callback)
+        rospy.Subscriber('/dynamixel_controller/feedback', Empty, self.feedback_callback)
 
-        self.gripper = rospy.ServiceProxy('/manip3/dynamixel_command', DynamixelCommand)
+        self.gripper = rospy.ServiceProxy('/dynamixel_controller/dynamixel_command', DynamixelCommand)
 
         rospy.Service('manipulator', Manip3, self.handler)
 
         self.tf = tf.TransformListener()
-        self.tf.waitForTransform('manip_link', 'base_link', rospy.Time(), rospy.Duration(1.0))
+        self.tf.waitForTransform('manip_base_link', 'torso', rospy.Time(), rospy.Duration(1.0))
 
         self.is_moving = False
         self.plan = None
 
-        rospy.loginfo('[manip3] Going Home in 5 seconds...')
-        rospy.sleep(5)
-        self.reset_manipulator()
+        rospy.loginfo('[manip3] Going Home in 2 seconds...')
+        rospy.sleep(2)
+        self.home()
+        #self.open_gripper()
 
     def display_planned_path_callback(self, data):
         self.plan = data.trajectory[0].joint_trajectory
@@ -162,13 +163,11 @@ class Manipulator:
             success = self.reset_manipulator()
         elif type == 'home':
             success = self.home()
-        elif type == 'serve_2':
-            success = self.serve_2()    
         elif type == 'open':
             success = self.open_gripper()
         elif type == 'close':
             success = self.close_gripper()
-        elif type == 'pick':
+        elif type == 'serve_2':# rospy.sleep()
             self.open_gripper()
             target_pose = copy.deepcopy(pose)
             target_pose.position.x -= 0.07 * math.cos(goal.rz)
@@ -236,6 +235,29 @@ class Manipulator:
             joint_goal[5] = -0.35
             self.group.set_joint_value_target(joint_goal)
             success = self.execute_plan()
+
+        elif type == 'wave':
+            self.close_gripper()
+            angle = pose.position.x
+            joint_goal = self.group.get_current_joint_values()
+            joint_goal[1] = 0.2
+            joint_goal[5] = 1
+            joint_goal[4] = 0
+            self.group.set_joint_value_target(joint_goal)
+            success = self.execute_plan()
+
+            # rospy.sleep(3)
+            for i in range (100):
+
+                joint_goal[4] = 0.5
+                self.group.set_joint_value_target(joint_goal)
+                success = self.execute_plan()
+
+                joint_goal[4] = -0.5
+                self.group.set_joint_value_target(joint_goal)
+                success = self.execute_plan()
+         
+
         else:
             self.group.set_pose_target(pose)
             success = self.execute_plan()
