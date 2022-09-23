@@ -17,10 +17,10 @@ Sabertooth STRear(129);
 
 float V1, V2, V3, V4;
 
-Encoder Encoder1(22, 23);
-Encoder Encoder2(32, 33);
-Encoder Encoder3(42, 43);
-Encoder Encoder4(50, 51);
+Encoder Encoder1(10, 11); //BL
+Encoder Encoder2(28, 29); //FR
+Encoder Encoder3(36, 37); //FL
+Encoder Encoder4(40, 41); //BR
 
 long odom_timer;
 
@@ -74,7 +74,7 @@ ros::Publisher pub("/robot_base/encoders", &enc_msg);
 ros::NodeHandle nh; // Serial0
 
 void setup() {
-  nh.getHardware()->setBaud(38400);
+  nh.getHardware()->setBaud(57600);
   nh.initNode();
   nh.subscribe(sub);
   nh.advertise(pub);
